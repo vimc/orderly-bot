@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -ex
+HERE=$(dirname $0)
+. $HERE/common
+
+function cleanup {
+    set +e
+    rm $HERE/.webhook_secrets.ini -f
+}
+trap cleanup EXIT
+
+. $HERE/vault_secrets
+
+docker pull $TAG_BRANCH
+
+docker run -d \
+    --restart=always \
+    -p 4568:80 \
+    --name orderly-bot \
+    $TAG_BRANCH
+
+docker cp $HERE/.webhook_secrets.ini orderly-bot:/app/webhook_secrets.ini

@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -e
+HERE=$(dirname $0)
+. $HERE/common
+
+# In case we switch agents between steps
+[ ! -z $(docker images -q $TAG_SHA) ] || docker pull $TAG_SHA
+
+function cleanup {
+    echo "Cleaning up"
+    docker kill orderly-bot >/dev/null || true
+    docker rm orderly-bot >/dev/null || true
+}
+
+trap cleanup EXIT
+
+docker run -d \
+    -p 4568:80 \
+    --name orderly-bot \
+    $TAG_SHA
+
+set +e
+for attempt in $(seq 10); do
+    echo "Attempt $attempt"
+    RESPONSE=$(curl --silent http://localhost:4568/orderly-bot/)
+    if [ "$RESPONSE" == "Bot running" ]; then
+        echo "SUCCESS"
+        exit 0
+    fi
+    sleep 0.5
+done
+
+echo "FAIL"
+exit 1
